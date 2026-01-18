@@ -39,6 +39,7 @@ trackMap = "purduePathTest.kml"
 SavePath = ""
 data_lock = threading.Lock()
 
+#Dictionary format for data
 send_Data = {
                     "batterySOC": 100, #[0,100]
                     "MotorTemp": 0, #[0,255] value, [-40,+215] Celcius
