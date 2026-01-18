@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <title>Relectric Telemetry</title>
+        <link rel="icon" type="image/x-icon" href="/static/RelectricIcon.ico">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <link rel="stylesheet" href="/static/style.css">
+
+    </head>
+
+    <body>
+        
+        <div class="dashboard-container">
+    
+            <div class="top-box">
+                <h2>BATTERY SOC</h2>
+                <div class="graph-container">
+                    <canvas id="BatterySOC_Graph_ID"></canvas>
+                </div>
+            </div>
+
+            <div class="top-box">
+                <h2>TEMPS</h2>
+                <div class="graph-container">
+                    <canvas id="Temps_Graph_ID"></canvas>
+                </div>
+            </div>
+
+            
+
+            <div class="bottom-box flags-box">
+                <h2>FLAGS</h2>
+                <div class="section-title">Motor</div>
+                <div class="data-row"><span class="label">Temp</span> <span class="value" id="MotorTempWarning">OK</span></div>
+                
+                <div class="section-title">System</div>
+                <div class="data-row"><span class="label">Traction</span> <span class="value" id="traction">OK</span></div>
+                <div class="data-row"><span class="label">Direction</span> <span class="value" id="direction">NONE</span></div>
+                <div class="data-row"><span class="label">Break</span> <span class="value" id="break">NONE</span></div>
+                <div class="data-row"><span class="label">Cntrl Temp</span> <span class="value" id="controllerTempWarning">OK</span></div>
+                <div class="data-row"><span class="label">Keyswitch volt</span> <span class="value" id="keyVoltage">NORMAL</span></div>
+                
+                <div class="section-title">Fault</div>
+                <div class="data-row"><span class="label">Code</span> <span class="value" id="faultCode">0</span></div>
+                <div class="data-row"><span class="label">Level</span> <span class="value" id="faultLevel">0</span></div>
+            </div>
+
+            <div class="bottom-box kart-upper-box kart-container">
+                <div class="kart-sub-box">
+                    <h2>KART</h2>
+                    <div class="data-row"><span class="label">Status</span> <span class="value" id="status">OFF</span></div>
+                    <div class="data-row"><span class="label">Odometer</span> <span class="value" id="odometer">--</span></div>
+                    <div class="data-row"><span class="label">Current</span> <span class="value" id="current">--</span></div>
+                    <div class="data-row"><span class="label">Speed</span> <span class="value" id="speed">--</span></div>
+                    <div class="data-row"><span class="label">Operating Time</span> <span class="value" id="uptime">--</span></div>
+                    <div class="data-row"><span class="label">LapTime</span> <span class="value" id="lap">--</span></div>
+                </div>
+
+                <div class="kart-sub-box">
+                    <h2>CONRTOLS</h2>
+                    <button class="btn-control" onclick="DriverPit()">Driver Pit</button>
+                    <button class="btn-control" onclick="DriverEmergency()">Driver Warn</button>
+                    
+                    <div class="save-sub-box">
+                        <button class="btn-control" id="saveButton" onclick="StartSave()" style="margin-bottom: 0;">Start Save</button>
+                        
+                        <div id="loggingStatus">
+                            <div id="logIndicator" class="indicator-dot"></div>
+                            <span id="logText" style="font-size: 0.85rem; font-weight: bold;"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bottom-box track-box">
+                <h2>TRACK</h2>
+                <div class="graph-container">
+                    <canvas id="Track_Graph_ID"></canvas>
+                </div>
+                <img src="/static/RelectricLogo.png" alt="" class="track-corner-image">
+            </div>
+        </div>
+
+
+        <script src="/static/scripts.js"></script>
+    </body>
+</html>

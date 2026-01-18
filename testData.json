@@ -1,0 +1,15 @@
+{
+    "batterySOC": 72, 
+    "MotorTemp": 50,
+    "InverterTemp": 55,
+    "LapTime": 3,
+    "LapTimeDelta": 0.1,
+    "FaultLevel": 0,
+    "FaultCode": 0,
+    "MotorFlag": 0,
+    "SystemFlags": [0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+    "Odometer": 0,
+    "Current": 0,
+    "Speed": 10,
+    "OperatingTime": 100
+}
