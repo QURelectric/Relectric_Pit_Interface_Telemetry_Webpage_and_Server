@@ -1,0 +1,9 @@
+{
+    "Testing": true,
+    "TestDataPath": "C:/Users/starl/OneDrive/Desktop/School/2nd_Year/Relectric/WebServerBasedTelemtryUI/UI/TestData.json",
+    "TestKartPosition": [40.43788230494788, -86.94481112554759],
+    
+    "TrackPathFile": "purduePathTest.kml",
+    "SaveFilePath": "C:/Users/starl/OneDrive/Desktop/School/2nd_Year/Relectric/WebServerBasedTelemtryUI/UI",
+    "SaveIntervalSeconds": 1.0
+}
