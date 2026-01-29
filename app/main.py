@@ -151,6 +151,7 @@ def background_Data_Logger(saveInterval, jsonSource, save_path_queue: Queue, sav
 
     while True:
         try:
+            #If statements are only used at startup and when the config file is changed
             if not save_path_queue.empty():
                 saveFile = save_path_queue.get()
             
@@ -160,7 +161,6 @@ def background_Data_Logger(saveInterval, jsonSource, save_path_queue: Queue, sav
             if not interval_Queue.empty():
                 current_interval = interval_Queue.get()
             
-            # Check for test file path updates
             if not test_File_Path_Queue.empty():
                 current_json_source = test_File_Path_Queue.get()
 
@@ -170,6 +170,8 @@ def background_Data_Logger(saveInterval, jsonSource, save_path_queue: Queue, sav
                 data_out_queue.put(save_data)
 
             current_time = time.perf_counter()
+            
+            #Only saves new data if the current time interval has passed, the save file and data exist, and saving has begun
             if (current_time - last_save_time >= current_interval and save_Begun and saveFile is not None and save_data is not None):
                 saveNewData(saveFile, save_data)
                 last_save_time = current_time
@@ -308,11 +310,11 @@ async def websocket_endpoint(websocket: WebSocket):
     referenceMin = []
     referenceMax = []
 
-    #Used when extracting from a point based kml file
+    #Used when extracting from a point based kml file, Not needed for a KML file that used paths and polygons
     pitEntrancePoint = 24
     pitExitPoint = 32
 
-    #Gets the track layout only at the initial websocket connection
+    #Gets the track layout at the initial websocket connection
     try:
         track,pit,referenceMin,referenceMax = ParseandExtractMap.ExtractKML(trackMap)
         track_data = {"track":track, "pit":pit}
@@ -328,12 +330,13 @@ async def websocket_endpoint(websocket: WebSocket):
         try:
             while True:
                 recieved_Data = await websocket.receive_json()
-
                 if recieved_Data.get("DriverPit") == 1:
                     print("Driver Pit Signal Recieved ")
+                    #Put the MQQT Signal Sending here
                 
                 if recieved_Data.get("DriverEmergency") == 1:
-                    print("Driver Emergency") 
+                    print("Driver Emergency")
+                    #Put the MQQT Signal Sending here 
                 
                 if recieved_Data.get("StartSave") == 1:
                     newSaveFile = StartSaveFile(SavePath)
@@ -351,17 +354,13 @@ async def websocket_endpoint(websocket: WebSocket):
         except Exception as e:
              print(f"Receiver error: {e}")
 
-
-    #Starts the Asynchronous reciever function  
     receive_task = asyncio.create_task(receiver())
-
     
     try:
-        #Continously sends data to the web page
         while True:
-            #Checks if the websocket is still connected, if no the loop breaks
             if websocket.client_state.value == 1:
 
+                #If the config file has changes, all config settings update and the map updates
                 if not config_Data_Queue.empty():
                     new_config = config_Data_Queue.get()
                     SavePath = new_config["SavePath"]
@@ -385,10 +384,10 @@ async def websocket_endpoint(websocket: WebSocket):
                     test_File_Path_Queue.put(test_File_Path)
 
 
-                if not data_Queue.empty():
-                    current_Data = data_Queue.get()
-                else:
+                if data_Queue.empty():
                     continue
+                else:
+                    current_Data = data_Queue.get()
 
                 try:
                     if testing:
