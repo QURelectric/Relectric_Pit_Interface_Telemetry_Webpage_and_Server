@@ -18,6 +18,12 @@ import signal
 import random
 
 from . import ParseandExtractMap
+
+import paho.mqtt.client as mqtt
+
+import copy
+
+
 # Import necessary modules for HTML responses and templating
 
 app = FastAPI()
@@ -34,28 +40,40 @@ active_connections = []
 
 #Global Variables
 configPath = "config.json"
+testing = False
+
+BROKER = None
+PORT = None
+#USERNAME = "m07p6t1s7@mozmail.com"
+#PASSWORD = "Db9aTJ~3'^dGf~8"
+TOPIC = None
+
+client = mqtt.Client(
+    client_id="kart_subscriber",
+    callback_api_version=mqtt.CallbackAPIVersion.VERSION2
+)
 
 #Dictionary format for data
-#send_Data = {
-#                    "batterySOC": 100, #[0,100]
-#                    "MotorTemp": 0, #[0,255] value, [-40,+215] Celcius
-#                    "InverterTemp": 0, #[0,255] value, [-40,+215] Celcius
-#                    "LapTime": 0,
-#                    "LapTimeDelta": 0,
-#                    "FaultLevel": 0, #[0 fine, 4 warning, 3 Throttle down, 2 stopping, 1 Cut power]
-#                    "FaultCode": 0, #[0,150]
-#                    "MotorFlag": 0, #bitmask(BIT3: Motor 1 Overtemp, BIT7: Motor2 Overtemp)
-#                    "SystemFlags": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], #bitmask(BIT0: SoC low traction, BIT1: SOC low hydraulic, BIT2: Reverse Direction, BIT3: Forward Direction, BIT4: Parking brake, BIT5: Pedal Break, BIT6: Controller Overtemp, BIT7: keyswitch overvolt, BIT8: Keyswitch undervolt, BIT9: Vehicle Running, BIT10: Traction Enabled, BIT11: Hydraulics Enabled, BIT12: Powering Enabled, BIT13: Powering ready, BIT14: Powering is Precharging, BIT15:  Main Contacting Closing)
-#                    #BIT12 -> BIT14 -> BIT13 -> BIT15 -> BIT9
-#                    #Powering enabled -> powering precharging -> powering ready -> main contacts closing -> vehicle running
-#                    "Odometer": 0,
-#                    "counter": 0,
-#                    "Current": 0, #[-32768; +32767] ↔ [-3276.8; +3276.7]Arms
-#                    "Speed": 0, #[[-32768; +32767] ↔ [-3276.8;+3276.7]km/h]
-#                    "OperatingTime": 0,
-#                    "Saving": False,
-#                    "DriverPos": []
-#}
+BasicTemplate = {
+                    "batterySOC": 100, #[0,100]
+                    "MotorTemp": 0, #[0,255] value, [-40,+215] Celcius
+                    "InverterTemp": 0, #[0,255] value, [-40,+215] Celcius
+                    "LapTime": 0,
+                    "LapTimeDelta": 0,
+                    "FaultLevel": 0, #[0 fine, 4 warning, 3 Throttle down, 2 stopping, 1 Cut power]
+                    "FaultCode": 0, #[0,150]
+                    "MotorFlag": 0, #bitmask(BIT3: Motor 1 Overtemp, BIT7: Motor2 Overtemp)
+                    "SystemFlags": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], #bitmask(BIT0: SoC low traction, BIT1: SOC low hydraulic, BIT2: Reverse Direction, BIT3: Forward Direction, BIT4: Parking brake, BIT5: Pedal Break, BIT6: Controller Overtemp, BIT7: keyswitch overvolt, BIT8: Keyswitch undervolt, BIT9: Vehicle Running, BIT10: Traction Enabled, BIT11: Hydraulics Enabled, BIT12: Powering Enabled, BIT13: Powering ready, BIT14: Powering is Precharging, BIT15:  Main Contacting Closing)
+                    #BIT12 -> BIT14 -> BIT13 -> BIT15 -> BIT9
+                    #Powering enabled -> powering precharging -> powering ready -> main contacts closing -> vehicle running
+                    "Odometer": 0,
+                    "counter": 0,
+                    "Current": 0, #[-32768; +32767] ↔ [-3276.8; +3276.7]Arms
+                    "Speed": 0, #[[-32768; +32767] ↔ [-3276.8;+3276.7]km/h]
+                    "OperatingTime": 0,
+                    "Saving": False,
+                    "DriverPos": []
+}
 
 
 config_Data_Queue = Queue()
@@ -64,6 +82,22 @@ save_File_Path_Queue = Queue()
 save_Begun_Queue = Queue()
 interval_Queue = Queue()
 test_File_Path_Queue = Queue()
+
+def on_connect(client, userdata, flags, reason_code, properties):
+    print("Connected with reason code", reason_code)
+    result, mid = client.subscribe(TOPIC, qos=1)
+    print("Subscribed:", result)
+
+
+def on_message(client, userdata, msg):
+    try:
+        data = json.loads(msg.payload.decode())
+        print("Message Recieved ")
+        if data is not None:
+                data_Queue.put(data)
+    except (json.JSONDecodeError, KeyError) as e:
+        print("Bad packet:", e)
+        print(f"Received: {msg.payload.decode()}")
 
 def extractConfig(path):
     if os.path.exists(path):
@@ -164,10 +198,11 @@ def background_Data_Logger(saveInterval, jsonSource, save_path_queue: Queue, sav
             if not test_File_Path_Queue.empty():
                 current_json_source = test_File_Path_Queue.get()
 
-            save_data = extractJson(current_json_source) #Change this out when real database is made
+            if testing:
+                save_data = extractJson(current_json_source) #Change this out when real database is made
 
-            if save_data is not None:
-                data_out_queue.put(save_data)
+                if save_data is not None:
+                    data_out_queue.put(save_data)
 
             current_time = time.perf_counter()
             
@@ -183,10 +218,9 @@ def background_Data_Logger(saveInterval, jsonSource, save_path_queue: Queue, sav
             time.sleep(1)
 
 
-
 def configSetting(configPath):
 
-    required_keys = ["SaveFilePath", "TrackPathFile", "SaveIntervalSeconds"]
+    required_keys = ["SaveFilePath", "TrackPathFile", "SaveIntervalSeconds", "MQQT_BROKER", "MQQT_PORT", "MQQT_TOPIC"]
 
     data = extractConfig(configPath)
 
@@ -203,7 +237,10 @@ def configSetting(configPath):
         "interval": data["SaveIntervalSeconds"],
         "testing": data.get("Testing", False),
         "testDriverPos": data.get("TestKartPosition"),
-        "test_File_Path": data.get("TestDataPath")
+        "test_File_Path": data.get("TestDataPath"),
+        "MQQT_BROKER": data.get("MQQT_BROKER"),
+        "MQQT_PORT": data.get("MQQT_PORT"),
+        "MQQT_TOPIC": data.get("MQQT_TOPIC"),
     }
 
 
@@ -244,9 +281,18 @@ def TestBatteryUse(currentBattery):
         battery = 0
     return battery
 
-def ShutdownServer():
-    print("Server is shutting down")
+def ShutdownServer(signum=None, frame=None):
+    if signum:
+        print(f"Recieved signal {signum}, shutting down")
+    else:
+        print("Server is shutting down")
+    client.loop_stop()
+    client.disconnect()
     os.kill(os.getpid(), signal.SIGTERM)
+    
+
+signal.signal(signal.SIGINT, ShutdownServer) #Ctrl+C
+signal.signal(signal.SIGTERM, ShutdownServer) #Termination
 
 
 
@@ -261,8 +307,13 @@ async def read_root(request: Request):
 
 @app.on_event("startup")
 async def startup_event():
+    global BROKER, PORT, TOPIC
 
     initial_config = configSetting(configPath)
+    BROKER = initial_config["MQQT_BROKER"]
+    PORT = initial_config["MQQT_PORT"]
+    TOPIC = initial_config["MQQT_TOPIC"]
+
 
     data_logger = threading.Thread(
         target=background_Data_Logger,
@@ -285,15 +336,26 @@ async def startup_event():
     configCheck.start()
     print("Background saver task created")
 
+
+    
+    #client.username_pw_set(USERNAME, PASSWORD)
+    client.on_connect = on_connect
+    client.on_message = on_message
+    client.connect(BROKER, PORT, 60)
+    client.loop_start()
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
+
+    global testing,BROKER,PORT,TOPIC
 
     import asyncio
     seconds = 0
     counter = 0
     batterySOC = 100
     saveBegun = None
+    current_Data = copy.deepcopy(BasicTemplate)
 
     #How many seconds between sending data to the webpage
     updateTime = 0.04
@@ -305,7 +367,9 @@ async def websocket_endpoint(websocket: WebSocket):
     testing = current_config["testing"]
     testDriverPos = current_config["testDriverPos"]
     test_File_Path = current_config["test_File_Path"]
-
+    BROKER = current_config["MQQT_BROKER"]
+    PORT = current_config["MQQT_PORT"]
+    TOPIC = current_config["MQQT_TOPIC"]
 
     referenceMin = []
     referenceMax = []
@@ -379,16 +443,22 @@ async def websocket_endpoint(websocket: WebSocket):
                     testing = new_config["testing"]
                     testDriverPos = new_config["testDriverPos"]
                     test_File_Path = new_config["test_File_Path"]
+                    BROKER = config_Data_Queue["MQQT_BROKER"]
+                    PORT = config_Data_Queue["MQQT_PORT"]
+                    TOPIC = config_Data_Queue["MQQT_TOPIC"]
+                    client.disconnect()
+                    client.connect(BROKER, PORT, 60)
+                    
                     print("Config updated in websocket")
                     interval_Queue.put(interval)
                     test_File_Path_Queue.put(test_File_Path)
 
 
-                if data_Queue.empty():
-                    continue
-                else:
-                    current_Data = data_Queue.get()
-
+                #only updates keys sent in the message if there is data
+                if not data_Queue.empty():
+                    new_data = data_Queue.get()
+                    current_Data.update(new_data)
+                    
                 try:
                     if testing:
                         counter += 1
@@ -399,15 +469,28 @@ async def websocket_endpoint(websocket: WebSocket):
                         if counter % (1 / updateTime) == 1:
                             seconds += 1
 
-                    
+                    #If system flags isnt the right length then pad it with zeros
+                    system_flags = current_Data.get("SystemFlags", [0]*16)
+                    if isinstance(system_flags,list) and len(system_flags) < 16:
+                        system_flags.extend([0] * (16 - len(system_flags)))
+                    current_Data["SystemFlags"] = system_flags
+
 
                     #Normalizes the kart position given in LON and LAT into the nomormalized track layout
-                    if current_Data["DriverPos"]:
-                        current_Data["DriverPos"] = ParseandExtractMap.normalizeKartPosition(current_Data["DriverPos"],referenceMin,referenceMax)
-
-                    current_Data["Saving"] = saveBegun
+                    driver_Pos = current_Data.get("DriverPos",None)
+                    if driver_Pos is not None and isinstance(driver_Pos,list) and len(driver_Pos) >= 2 and len(referenceMax) > 0 and len(referenceMin) > 0:
+                        try:
+                            current_Data["DriverPos"] = ParseandExtractMap.normalizeKartPosition(driver_Pos, referenceMin, referenceMax)
+                        except (IndexError, ValueError) as e:
+                            print(f"Error normalizing position: {e}")
+                            print(f"driver_Pos: {driver_Pos}, refMin: {referenceMin}, refMax: {referenceMax}")
+                            # Keep original position or set to empty
+                            
+                    current_Data["Saving"] = saveBegun if saveBegun is not None else False
+                    
                     #Sends the current data to the webserver
                     await websocket.send_json(current_Data)
+                
                 except Exception as Frame_Error:
                     print(f"Error processing data frame: {Frame_Error}")
                 
