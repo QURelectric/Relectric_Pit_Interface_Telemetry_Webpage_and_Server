@@ -17,7 +17,9 @@ const el = {
                 lap: null,
                 saveButton: null,
                 logIndicator: null,
-                logText: null
+                logText: null,
+                pitButton: null,
+                warnButton: null
             };
 
             const graphInterval = 40 //How many datapoints you want to be shown
@@ -281,8 +283,32 @@ const el = {
                 }
             }
 
-            function DriverPit() { sendCommand({DriverPit: 1});}
-            function DriverEmergency() { sendCommand({DriverEmergency: 1});}
+            function DriverPit() {
+                if(el.pitButton.innerText == "Driver Pit"){
+                    el.pitButton.innerText = "Confirm";
+                    return;
+                }     
+                if(el.pitButton.innerText == "Confirm"){
+                    sendCommand({DriverPit: 1});
+                    el.pitButton.innerText = "Driver Pit";
+                    return;
+                } 
+            }
+
+            function DriverEmergency() { 
+                if(el.warnButton.innerText == "Driver Warn"){
+                    el.warnButton.innerText = "Confirm";
+                    return;
+                }     
+                if(el.warnButton.innerText == "Confirm"){
+                    sendCommand({DriverEmergency: 1});
+                    el.warnButton.innerText = "Driver Warn";
+                    return;
+                } 
+                sendCommand({DriverEmergency: 1});
+            
+            }
+
             function StartSave() {
                 sendCommand({ StartSave: 1 });
                 el.saveButton.innerText = "End Save";
@@ -360,6 +386,8 @@ const el = {
                 el.saveButton = document.getElementById("saveButton");
                 el.logIndicator = document.getElementById("logIndicator");
                 el.logText = document.getElementById("logText");
+                el.pitButton = document.getElementById("PitButton");
+                el.warnButton = document.getElementById("WarnButton");
             };
 
 
