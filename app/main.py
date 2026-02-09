@@ -22,6 +22,7 @@ from . import ParseandExtractMap
 import paho.mqtt.client as mqtt
 
 import copy
+from platform import system
 
 
 # Import necessary modules for HTML responses and templating
@@ -286,13 +287,21 @@ def ShutdownServer(signum=None, frame=None):
         print(f"Recieved signal {signum}, shutting down")
     else:
         print("Server is shutting down")
-    client.loop_stop()
-    client.disconnect()
-    os.kill(os.getpid(), signal.SIGTERM)
+    try:
+        client.loop_stop()
+        client.disconnect()
+    except Exception as e:
+        print(f"Error in MQQT Cleanup {e}")
+
+    os._exit(0)
     
 
 signal.signal(signal.SIGINT, ShutdownServer) #Ctrl+C
-signal.signal(signal.SIGTERM, ShutdownServer) #Termination
+
+if system() != "Windows":
+    signal.signal(signal.SIGTERM, ShutdownServer) #Termination
+
+
 
 
 
@@ -304,6 +313,17 @@ async def read_root(request: Request):
     # Define an asynchronous function to handle requests to this endpoint
     return templates.TemplateResponse("index.html", {"request": request, "message": "Hello World"})
     # Return a simple JSON response using the template "index.html" with a message
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Handles cleanup when uvicorn shuts down gracefully"""
+    print("FastAPI shutdown event triggered")
+    try:
+        client.loop_stop()
+        client.disconnect()
+        print("MQTT client disconnected")
+    except Exception as e:
+        print(f"Error in MQTT Cleanup: {e}")
 
 @app.on_event("startup")
 async def startup_event():

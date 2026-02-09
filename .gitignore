@@ -6,3 +6,8 @@ Scripts/
 Include/
 Lib/
 pyvenv.cfg
+bin/
+include/
+lib/
+lib64/
+
